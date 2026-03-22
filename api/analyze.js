@@ -1,7 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
    api/analyze.js — Vercel Serverless Function
-   يستخدم OpenRouter API (مجاني)
-   موديل: meta-llama/llama-3.2-11b-vision-instruct:free
+   يستخدم Google Gemini API مباشرة
    ═══════════════════════════════════════════════════════════ */
 
 module.exports = async function handler(req, res) {
@@ -15,9 +14,9 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
 
   /* ── API Key ── */
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'OPENROUTER_API_KEY not set in environment variables' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY not set in environment variables' });
   }
 
   try {
@@ -27,54 +26,40 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'imageBase64 and mimeType are required' });
     }
 
-    const systemPrompt = `أنت ناقد تصميم محترف. أعد JSON فقط بهذا الشكل الدقيق، بدون أي نص خارجه، لا تضف أي كلام قبله أو بعده:
+    const prompt = `أنت ناقد تصميم محترف. أعد JSON فقط بهذا الشكل الدقيق، بدون أي نص خارجه:
 {"overall":7,"summary":"ملخص.","colors":{"score":6,"observation":"ملاحظة.","suggestion":"اقتراح."},"balance":{"score":7,"observation":"ملاحظة.","suggestion":"اقتراح."},"hierarchy":{"score":5,"observation":"ملاحظة.","suggestion":"اقتراح."},"typography":{"score":6,"observation":"ملاحظة.","suggestion":"اقتراح."},"clarity":{"score":8,"observation":"ملاحظة.","suggestion":"اقتراح."},"marketing":{"score":7,"observation":"ملاحظة.","suggestion":"اقتراح."}}
 قواعد النقد: مباشر بدون مجاملة زائدة، اقتراحات عملية، التقييم من 10.`;
 
-    /* ── OpenRouter API Call ── */
-    const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer':  'https://design-critic.vercel.app',
-        'X-Title':       'Design Critic',
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen2.5-vl-7b-instruct:free',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image_url',
-                image_url: { url: `data:${mimeType};base64,${imageBase64}` }
-              },
-              {
-                type: 'text',
-                text: 'حلّل هذا التصميم وأعطني التقرير كاملاً بصيغة JSON فقط.'
-              }
+    /* ── Gemini API Call ── */
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: mimeType, data: imageBase64 } },
+              { text: prompt }
             ]
+          }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1000,
           }
-        ],
-        max_tokens: 1000,
-        temperature: 0.4,
-      })
-    });
+        })
+      }
+    );
 
-    if (!orRes.ok) {
-      const errData = await orRes.json().catch(() => ({}));
-      return res.status(orRes.status).json({
-        error: errData?.error?.message || `OpenRouter error: ${orRes.status}`
+    if (!geminiRes.ok) {
+      const errData = await geminiRes.json().catch(() => ({}));
+      return res.status(geminiRes.status).json({
+        error: errData?.error?.message || `Gemini error: ${geminiRes.status}`
       });
     }
 
-    const data   = await orRes.json();
-    const raw    = data.choices?.[0]?.message?.content || '';
+    const data   = await geminiRes.json();
+    const raw    = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const clean  = raw.replace(/```json|```/gi, '').trim();
     const report = JSON.parse(clean);
 

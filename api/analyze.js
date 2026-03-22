@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════
-   api/analyze.js — Vercel Serverless Function (CommonJS)
+   api/analyze.js — Vercel Serverless Function
+   يستخدم Google Gemini API (مجاني)
    ═══════════════════════════════════════════════════════════ */
 
 module.exports = async function handler(req, res) {
@@ -9,18 +10,13 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
 
   /* ── API Key ── */
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+    return res.status(500).json({ error: 'GEMINI_API_KEY not set in environment variables' });
   }
 
   try {
@@ -30,41 +26,56 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'imageBase64 and mimeType are required' });
     }
 
-    const systemPrompt = `أنت ناقد تصميم محترف. أعد JSON فقط بهذا الشكل الدقيق، بدون أي نص خارجه:
-{"overall":7,"summary":"ملخص.","colors":{"score":6,"observation":"ملاحظة.","suggestion":"اقتراح."},"balance":{"score":7,"observation":"ملاحظة.","suggestion":"اقتراح."},"hierarchy":{"score":5,"observation":"ملاحظة.","suggestion":"اقتراح."},"typography":{"score":6,"observation":"ملاحظة.","suggestion":"اقتراح."},"clarity":{"score":8,"observation":"ملاحظة.","suggestion":"اقتراح."},"marketing":{"score":7,"observation":"ملاحظة.","suggestion":"اقتراح."}}
-قواعد النقد: مباشر بدون مجاملة زائدة، اقتراحات عملية، التقييم من 10.`;
+    const prompt = `أنت ناقد تصميم محترف. حلّل هذه الصورة وأعد JSON فقط بهذا الشكل الدقيق، بدون أي نص خارجه:
+{
+  "overall": 7,
+  "summary": "ملخص التصميم بجملة أو جملتين.",
+  "colors":     { "score": 6, "observation": "ملاحظة عن الألوان.", "suggestion": "اقتراح لتحسين الألوان." },
+  "balance":    { "score": 7, "observation": "ملاحظة عن التوازن.", "suggestion": "اقتراح لتحسين التوازن." },
+  "hierarchy":  { "score": 5, "observation": "ملاحظة عن التسلسل البصري.", "suggestion": "اقتراح لتحسين التسلسل." },
+  "typography": { "score": 6, "observation": "ملاحظة عن الخطوط.", "suggestion": "اقتراح لتحسين الخطوط." },
+  "clarity":    { "score": 8, "observation": "ملاحظة عن الوضوح.", "suggestion": "اقتراح لتحسين الوضوح." },
+  "marketing":  { "score": 7, "observation": "ملاحظة عن التأثير التسويقي.", "suggestion": "اقتراح لتحسين التأثير." }
+}
+قواعد النقد: مباشر بدون مجاملة زائدة، اقتراحات عملية قابلة للتطبيق، التقييم من 10.`;
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model:      'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system:     systemPrompt,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-            { type: 'text',  text: 'حلّل هذا التصميم.' }
-          ]
-        }]
-      })
-    });
+    /* ── Gemini API Call ── */
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: imageBase64
+                }
+              },
+              { text: prompt }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 1000,
+          }
+        })
+      }
+    );
 
-    if (!anthropicRes.ok) {
-      const errData = await anthropicRes.json().catch(() => ({}));
-      return res.status(anthropicRes.status).json({
-        error: errData?.error?.message || `Anthropic error: ${anthropicRes.status}`
+    if (!geminiRes.ok) {
+      const errData = await geminiRes.json().catch(() => ({}));
+      return res.status(geminiRes.status).json({
+        error: errData?.error?.message || `Gemini error: ${geminiRes.status}`
       });
     }
 
-    const data   = await anthropicRes.json();
-    const raw    = data.content.filter(x => x.type === 'text').map(x => x.text).join('');
-    const report = JSON.parse(raw.replace(/```json|```/gi, '').trim());
+    const data = await geminiRes.json();
+    const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const clean = raw.replace(/```json|```/gi, '').trim();
+    const report = JSON.parse(clean);
 
     return res.status(200).json(report);
 

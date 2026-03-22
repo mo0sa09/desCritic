@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Creative Studio — نقد + بريف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ HEADER ══ -->
+  <header class="hdr">
+    <div class="logo"><span>[</span>CS<span>]</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="critic">🎨 Design Critic</button>
+      <button class="tab" data-tab="brief">📋 Brief Generator</button>
+    </nav>
+    <div class="badge">Creative Studio v2.0</div>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       TAB 1: DESIGN CRITIC
+  ══════════════════════════════════════ -->
+  <div class="tab-content active" id="tab-critic">
+
+    <!-- UPLOAD SCREEN -->
+    <div class="screen" id="uploadScreen">
+      <div class="up-inner">
+        <div class="hero-tag">AI Visual Analysis</div>
+        <h1>ارفع تصميمك و<em>خذ نقد احترافي</em><br/>خلال ثواني</h1>
+        <p class="sub">تحليل بصري حقيقي — بدون أي API خارجي</p>
+
+        <div class="uzone" id="uzone">
+          <input type="file" id="fileInput" accept="image/*" hidden/>
+          <div class="u-idle" id="uIdle">
+            <div class="u-icon">
+              <svg width="38" height="38" viewBox="0 0 48 48" fill="none">
+                <path d="M24 6v26M24 6L14 16M24 6l10 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6 36v6h36v-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p class="u-text">اسحب صورتك هنا أو</p>
+            <button class="btn-up" id="trigBtn">اختر ملف</button>
+            <p class="u-hint">PNG · JPG · WEBP — max 10MB</p>
+          </div>
+          <div class="u-prev hidden" id="uPrev">
+            <img id="prevImg" src="" alt="preview"/>
+            <div class="prev-bar">
+              <span class="fname" id="fnameEl"></span>
+              <button class="btn-chg" id="chgBtn">تغيير</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="err-box hidden" id="errBox"></div>
+
+        <button class="btn-analyze" id="analyzeBtn" disabled>
+          <span>ابدأ التحليل</span><span class="arr">←</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LOADER SCREEN -->
+    <div class="screen hidden" id="loaderScreen">
+      <div class="loader-inner">
+        <div class="spin"></div>
+        <p class="loader-msg">جاري تحليل التصميم…</p>
+        <div class="steps">
+          <span class="stp">🔍 فحص البنية</span>
+          <span class="stp">🎨 تحليل الألوان</span>
+          <span class="stp">⚖️ قياس التوازن</span>
+          <span class="stp">✅ جاهز</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULTS SCREEN -->
+    <div class="screen hidden" id="resultsScreen">
+      <div class="res-top">
+        <img class="res-thumb" id="resThumb" src="" alt=""/>
+        <div class="res-meta">
+          <div class="res-label">تقرير النقد البصري</div>
+          <div class="res-name" id="resName">—</div>
+          <div class="res-sum" id="resSummary"></div>
+        </div>
+        <div class="opill">
+          <div class="o-num" id="oNum">—</div>
+          <div class="o-lbl">/ 10</div>
+        </div>
+      </div>
+      <div class="cards-wrap"><div class="grid" id="grid"></div></div>
+      <div class="res-foot">
+        <button class="btn-reset" id="resetBtn">↑ تحليل تصميم آخر</button>
+      </div>
+    </div>
+
+  </div><!-- /tab-critic -->
+
+  <!-- ══════════════════════════════════════
+       TAB 2: BRIEF GENERATOR
+  ══════════════════════════════════════ -->
+  <div class="tab-content" id="tab-brief">
+    <div class="brief-wrap">
+
+      <!-- Step 1: اختيار المجال -->
+      <div class="brief-step" id="step1">
+        <div class="step-header">
+          <div class="step-num">01</div>
+          <div>
+            <div class="step-title">اختر المجال</div>
+            <div class="step-sub">ما نوع المشروع الذي تريد بريفه؟</div>
+          </div>
+        </div>
+        <div class="domain-grid" id="domainGrid">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+      <!-- Step 2: التصنيف الفرعي -->
+      <div class="brief-step hidden" id="step2">
+        <div class="step-header">
+          <button class="btn-back" id="backToStep1">← رجوع</button>
+          <div class="step-num">02</div>
+          <div>
+            <div class="step-title">اختر التصنيف</div>
+            <div class="step-sub" id="step2Sub">اختر نوع العمل المطلوب</div>
+          </div>
+        </div>
+        <div class="sub-grid" id="subGrid">
+          <!-- injected by JS -->
+        </div>
+      </div>
+
+      <!-- Step 3: معلومات المشروع -->
+      <div class="brief-step hidden" id="step3">
+        <div class="step-header">
+          <button class="btn-back" id="backToStep2">← رجوع</button>
+          <div class="step-num">03</div>
+          <div>
+            <div class="step-title">معلومات المشروع</div>
+            <div class="step-sub">أجب على الأسئلة لتوليد البريف</div>
+          </div>
+        </div>
+        <div class="form-grid" id="formGrid">
+          <!-- injected by JS -->
+        </div>
+        <button class="btn-generate" id="generateBtn">
+          <span>توليد البريف الكامل</span><span class="arr">←</span>
+        </button>
+      </div>
+
+      <!-- Step 4: البريف الناتج -->
+      <div class="brief-step hidden" id="step4">
+        <div class="step-header">
+          <button class="btn-back" id="backToStep3">← بريف جديد</button>
+          <div class="step-num">04</div>
+          <div>
+            <div class="step-title">البريف الكامل</div>
+            <div class="step-sub" id="briefTypeLabel">—</div>
+          </div>
+        </div>
+        <div class="brief-output" id="briefOutput">
+          <!-- injected by JS -->
+        </div>
+        <div class="res-foot">
+          <button class="btn-reset" id="copyBrief">📋 نسخ البريف</button>
+          <button class="btn-reset" id="newBrief" style="margin-right:12px">✦ بريف جديد</button>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /tab-brief -->
+
+</div><!-- #app -->
+<script src="app.js"></script>
+</body>
+</html>

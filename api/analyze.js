@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
         'X-Title':       'Design Critic',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen2.5-vl-72b-instruct:free',
+        model: 'qwen/qwen2.5-vl-7b-instruct:free',
         messages: [
           {
             role: 'system',
